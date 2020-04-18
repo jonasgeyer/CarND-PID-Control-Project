@@ -4,6 +4,7 @@
 #include <string>
 #include "json.hpp"
 #include "PID.h"
+#include <cstdlib>
 
 // for convenience
 using nlohmann::json;
@@ -30,15 +31,53 @@ string hasData(string s) {
   return "";
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   uWS::Hub h;
 
   PID pid;
   /**
    * TODO: Initialize the pid variable.
    */
+  for (int i(0); i<argc; ++i) {
+    std::cout << "arg " << i << ": " << argv[i] << std::endl;
+  }
+  
+  double scale = 1.0; 
+  if (argc > 1) {
+    scale = atof(argv[1]); 
+  }
+  std::cout << "scale: " << scale << std::endl;
+  
+  double Kp_ = 0.08; 
+  if (argc > 2) {
+    Kp_ = atof(argv[2]); 
+  }
+  std::cout << "Kp_: " << Kp_ << std::endl;
+  Kp_ *= scale;
+  
+  double Ki_ = 0.001; 
+  if (argc > 3) {
+    Ki_ = atof(argv[3]); 
+  }
+  std::cout << "Ki_: " << Ki_ << std::endl;
+  Ki_ *= scale;
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  double Kd_ = 1.8; 
+  if (argc > 4) {
+    Kd_ = atof(argv[4]); 
+  }
+  std::cout << "Kd_: " << Kd_ << std::endl;
+  Kd_ *= scale;
+  
+  double Vmax_ = 20.0; 
+  if (argc > 5) {
+    Vmax_ = atof(argv[5]); 
+  }
+  std::cout << "Vmax_: " << Vmax_ << std::endl;
+  
+  pid.Init(Kp_, Ki_, Kd_);
+
+  h.onMessage([&pid, &Vmax_](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -63,16 +102,30 @@ int main() {
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
+          pid.UpdateError(cte);
+          steer_value = pid.TotalError();
+          if (steer_value > 1.0)
+            steer_value = 1.0;
+          if (steer_value < -1.0)
+            steer_value = -1.0;
+          
+          double throttle = 0.3;
+          if (speed > Vmax_) {
+            throttle = 0.0;
+          }
           
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << std::endl;
+          // std::cout << "CTE: " << std::setw(5) << std::setprecision(2) << std::fixed << cte;
+          // std::cout << "  SteeringValue: " << std::setw(5) << std::setprecision(2) << std::fixed << steer_value;
+          // std::cout << "  angle: " << std::setw(5) << std::setprecision(2) << std::fixed << angle;
+          // std::cout << "  speed: " << std::setw(6) << std::setprecision(2) << std::fixed << speed;
+          // std::cout << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }  // end "telemetry" if
       } else {

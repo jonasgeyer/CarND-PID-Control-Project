@@ -1,6 +1,8 @@
 #ifndef PID_H
 #define PID_H
 
+#include <vector>
+
 class PID {
  public:
   /**
@@ -38,13 +40,23 @@ class PID {
   double p_error;
   double i_error;
   double d_error;
-
+  double total_error;
+  std::vector<double> last_diff;
+  unsigned last_diff_n;
+  unsigned last_diff_idx;
+  double last_diff_sum;
+  
   /**
    * PID Coefficients
    */ 
   double Kp;
   double Ki;
   double Kd;
+  
+  /**
+   * previous cross track error
+   */ 
+  double previous_cte;
 };
 
 #endif  // PID_H
